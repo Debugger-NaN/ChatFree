@@ -20,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.database.ServerValue;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
@@ -30,6 +31,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,7 +73,7 @@ public class ChatActivity extends AppCompatActivity {
         dbReferenceReceiver = FirebaseDatabase.getInstance().getReference("chats").child(receiverRoom);
 
 
-        dbReferenceSender.addValueEventListener(new ValueEventListener() {
+        dbReferenceSender.orderByChild("timestamp").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<MessageModel> messages = new ArrayList<>();
@@ -84,11 +86,12 @@ public class ChatActivity extends AppCompatActivity {
                     messageAdapter.add(message);
                 }
                 messageAdapter.notifyDataSetChanged();
+                recyclerView.scrollToPosition(messageAdapter.getItemCount() - 1); // Scroll to the bottom
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                // Handle error
             }
         });
 
@@ -106,16 +109,21 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void SendMessage(String message) {
-        String messageId = UUID.randomUUID().toString();
-        MessageModel messageModel = new MessageModel(messageId, FirebaseAuth.getInstance().getUid(), message);
-        messageAdapter.add(messageModel);
+        // Create a HashMap to represent the message data
+        // It's easier to use a HashMap when including a ServerValue
+        HashMap<String, Object> messageData = new HashMap<>();
+        messageData.put("message", message);
+        messageData.put("senderId", FirebaseAuth.getInstance().getUid());
+        messageData.put("timestamp", ServerValue.TIMESTAMP); // Add the server timestamp
 
+        // Push the message to both sender and receiver paths
+        String pushKey = dbReferenceSender.push().getKey();
 
-        dbReferenceSender.child(messageId).setValue(messageModel)
+        dbReferenceSender.child(pushKey).setValue(messageData)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void unused) {
-
+                        // ... (success code)
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -124,10 +132,9 @@ public class ChatActivity extends AppCompatActivity {
                         Toast.makeText(ChatActivity.this, "Failed to send message", Toast.LENGTH_SHORT).show();
                     }
                 });
-        dbReferenceReceiver.child(messageId).setValue(messageModel);
-        recyclerView.scrollToPosition(messageAdapter.getItemCount() - 1);
-        messageText.setText("");
 
+        dbReferenceReceiver.child(pushKey).setValue(messageData);
+        messageText.setText("");
     }
 
     @Override
