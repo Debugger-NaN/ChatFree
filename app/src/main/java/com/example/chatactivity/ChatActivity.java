@@ -108,22 +108,20 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    private void SendMessage(String message) {
-        // Create a HashMap to represent the message data
-        // It's easier to use a HashMap when including a ServerValue
+    private void SendMessage(String message) 
+    {
         HashMap<String, Object> messageData = new HashMap<>();
         messageData.put("message", message);
         messageData.put("senderId", FirebaseAuth.getInstance().getUid());
-        messageData.put("timestamp", ServerValue.TIMESTAMP); // Add the server timestamp
+        messageData.put("timestamp", ServerValue.TIMESTAMP);
 
-        // Push the message to both sender and receiver paths
         String pushKey = dbReferenceSender.push().getKey();
 
         dbReferenceSender.child(pushKey).setValue(messageData)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(Void unused) {
-                        // ... (success code)
+                    public void onSuccess(Void unused) 
+                    {
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
